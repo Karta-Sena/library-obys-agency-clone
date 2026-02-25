@@ -1,0 +1,30 @@
+{
+  "name": "library-obys-agency-clone",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "clean": "node -e \"const fs=require('fs');['.next','out'].forEach((d)=>fs.rmSync(d,{recursive:true,force:true}));\"",
+    "clean:all": "node -e \"const fs=require('fs');['.next','out','node_modules'].forEach((d)=>fs.rmSync(d,{recursive:true,force:true}));\"",
+    "extract:books": "python scripts/extract-books.py",
+    "extract:book-details": "node scripts/extract-book-details.mjs",
+    "download:assets": "python scripts/download-assets.py",
+    "normalize:assets": "node scripts/normalize-obys-assets.mjs"
+  },
+  "dependencies": {
+    "gsap": "^3.14.2",
+    "next": "14.2.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.30",
+    "@types/react": "18.2.73",
+    "@types/react-dom": "18.2.25",
+    "typescript": "5.4.5"
+  },
+  "license": "MIT"
+}

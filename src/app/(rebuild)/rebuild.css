@@ -1,0 +1,10 @@
+.rebuild-root {
+  height: 100%;
+  min-height: 100%;
+  background: #0e0e0e;
+  color: #f2f2f2;
+}
+
+body.rebuild-mode {
+  background: #0e0e0e;
+}
