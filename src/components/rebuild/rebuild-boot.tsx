@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { gsap } from "gsap";
 
 const PLACEHOLDER_PREFIX = "data:image/svg+xml";
+const FONT_READY_TIMEOUT_MS = 2500;
 const LOADED_RESOLVE_OFFSET_MS = 1300;
 const READY_DELAY_AFTER_LOADED_MS = 800;
 
@@ -30,6 +31,35 @@ function hydrateImages(scope: ParentNode) {
       img.setAttribute("loading", "lazy");
     }
   });
+}
+
+async function waitForFontsReady(timeoutMs: number) {
+  if (typeof document === "undefined" || !("fonts" in document)) return;
+  try {
+    await Promise.race([
+      document.fonts.ready,
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+  } catch {
+    // fallback: continue preload flow even if fonts API fails
+  }
+}
+
+function prepareLogoPreloaderState(logo: Element | null) {
+  if (!logo) return;
+  const widePath = logo.querySelector("[data-wide-path]");
+  if (widePath) {
+    gsap.set(widePath, { scaleX: 0, transformOrigin: "right" });
+  }
+  gsap.set(logo, { opacity: 1 });
+}
+
+function applyTouchClass(root: HTMLElement) {
+  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  root.classList.toggle("touchevents", isTouch);
+  root.classList.toggle("no-touchevents", !isTouch);
 }
 
 function createPreloaderTimeline({
@@ -87,14 +117,19 @@ export default function RebuildBoot() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.add("rebuild-mode");
+    root.classList.add("is-loading", "show-loading-screen", "rebuild-mode");
+    root.classList.remove("is-loaded", "is-ready");
+    applyTouchClass(root);
     document.body.classList.add("rebuild-mode");
+
     let destroyed = false;
     const timers: number[] = [];
     const timelines: gsap.core.Timeline[] = [];
 
     const desktopLogo = document.querySelector("[data-header-logo-desktop]");
     const mobileLogo = document.querySelector("[data-header-logo-mobile]");
+    prepareLogoPreloaderState(desktopLogo);
+    prepareLogoPreloaderState(mobileLogo);
 
     hydrateImages(document);
 
@@ -109,13 +144,9 @@ export default function RebuildBoot() {
     observer.observe(document.body, { childList: true, subtree: true });
 
     const runPreloader = async () => {
-      try {
-        await document.fonts.ready;
-      } catch {
-        // no-op: fallback to continue preload flow
-      }
-
+      await waitForFontsReady(FONT_READY_TIMEOUT_MS);
       if (destroyed) return;
+
       root.classList.remove("show-loading-screen");
 
       const desktopTimeline = createPreloaderTimeline({
@@ -134,14 +165,15 @@ export default function RebuildBoot() {
         midX: -74,
         lastX: -148,
       });
-      timelines.push(desktopTimeline, mobileTimeline);
 
+      timelines.push(desktopTimeline, mobileTimeline);
       desktopTimeline.play(0);
       mobileTimeline.play(0);
 
+      const baseDuration = Math.max(desktopTimeline.duration(), mobileTimeline.duration());
       const loadedDelay = Math.max(
         0,
-        Math.round(desktopTimeline.duration() * 1000 - LOADED_RESOLVE_OFFSET_MS),
+        Math.round(baseDuration * 1000 - LOADED_RESOLVE_OFFSET_MS),
       );
 
       const loadedTimer = window.setTimeout(() => {
@@ -170,6 +202,8 @@ export default function RebuildBoot() {
         "show-loading-screen",
         "is-ready",
         "is-loaded",
+        "touchevents",
+        "no-touchevents",
       );
       document.body.classList.remove("rebuild-mode");
     };
